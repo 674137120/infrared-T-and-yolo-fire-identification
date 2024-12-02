@@ -51,7 +51,7 @@ class MainWindow(QTabWidget):
         # 图片读取进程
         self.output_size = 480
         self.img2predict = ""
-        self.device = 'cpu'
+        self.device = 'cuda:0'
         # # 初始化视频读取线程
         self.vid_source = '0'  # 初始设置为摄像头
         self.stopEvent = threading.Event()

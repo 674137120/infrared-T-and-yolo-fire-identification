@@ -1,0 +1,13 @@
+train: datas/train/images
+val: datas/valid/images
+test: datas/test/images
+
+nc: 2
+names: ['Fire', 'Smoke']
+
+roboflow:
+  workspace: cpe313-advanced-ml-and-deep-learning
+  project: fire-and-smoke-mbhix
+  version: 6
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/cpe313-advanced-ml-and-deep-learning/fire-and-smoke-mbhix/dataset/6
