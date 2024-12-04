@@ -34,3 +34,6 @@ seaborn>=0.11.0
 # pycocotools>=2.0  # COCO mAP
 # roboflow
 thop  # FLOPs computation
+
+# 红外温度传感
+# smbus2
