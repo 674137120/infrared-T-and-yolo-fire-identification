@@ -35,5 +35,5 @@ seaborn>=0.11.0
 # roboflow
 thop  # FLOPs computation
 
-# 红外温度传感
-# smbus2
+# 热成像仪
+# flirpy

@@ -1,14 +1,14 @@
 '''
 -------------------------------------------------
-Project Name: 火焰检测综合模块
-File Name: ire_detection.py
+Project Name: 火焰检测
+File Name: yolo_flame_detection.py
 Author: XIANG SHI CHAO
 Create Date: 2024/12/3
 Description：
 -------------------------------------------------
 '''
-from its.detector import detect_flame, load_model
-from its.sensor import read_temperature_data
+from its.read_thermal import detect_flame, load_model
+from its.compare_flame_temp import read_temperature_data
 import numpy as np
 
 def is_flame_detected(flame_bboxes, temp_data, temp_threshold=40):

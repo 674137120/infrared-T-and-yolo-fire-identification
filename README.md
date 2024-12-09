@@ -1,30 +1,12 @@
-# 毕设系列-基于YOLOV5的火灾检测系统
-
-我们之前做过一期基于Yolov5的口罩检测系统（[手把手教你使用YOLOV5训练自己的目标检测模型-口罩检测-视频教程_dejahu的博客-CSDN博客](https://blog.csdn.net/ECHOSON/article/details/121939535)），里面的代码是基于YOLOV5 6.0开发的，并且是适用其他数据集的，只需要修改数据集之后重新训练即可，非常方便，但是有些好兄弟是初学者，可能不太了解数据的处理，所以我们就这期视频做个衍生系列，主要是希望通过这些系列来教会大家如何训练和使用自己的数据集。
+# 基于YOLOV5和红外温度传感的火灾检测系统
 
 本期我们带来的内容是基于YOLOV5的火灾检测系统，火灾检测系统还是比较有实际意义的，也方便大家在背景描述中展开。废话不多说，还是先看效果。
 
 ![image-20220219203117140](https://vehicle4cm.oss-cn-beijing.aliyuncs.com/typoraimgs/image-20220219203117140.png)
 
-考虑到有的朋友算力不足，我这里也提供了标注好的数据集和训练好的模型，获取方式有两种：
-
-* 获取方式1：
-
-  在B站视频三连并关注后留下邮箱，我会每晚发送给大家，视频地址如下：
-
-  [毕设系列-检测专题-基于YOLOV5的火灾检测系统_哔哩哔哩_bilibili](https://www.bilibili.com/video/BV1cu411X74W/)
-
-* 获取方式2：
-
-  直接在csdn中付费下载，资源地址如下：
-
-  [YOLOV5火灾检测数据集+代码+模型2000张标注好的数据+教学视频-深度学习文档类资源-CSDN文库](https://download.csdn.net/download/ECHOSON/81474663)
-
-需要远程调试的小伙伴可以加QQ 3045834499, 三连的好兄弟只199元就可以获取远程调试的服务。
-
 ## 下载代码
 
-代码的下载地址是：[[YOLOV5-mask-42: 基于YOLOV5的口罩检测系统-提供教学视频 (gitee.com)](https://gitee.com/song-laogou/yolov5-mask-42)](https://github.com/ultralytics/yolov5)
+代码的下载地址是：[https://github.com/674137120/infrared-T-and-yolo-fire-identification]
 
 ![image-20211214191424378](https://vehicle4cm.oss-cn-beijing.aliyuncs.com/typoraimgs/image-20211214191424378.png)
 
@@ -77,7 +59,7 @@ conda install pytorch==1.8.0 torchvision==0.9.0 torchaudio==0.8.0 cpuonly # CPU�
 
 ### pycocotools的安装
 
-<font color='red'>后面我发现了windows下更简单的安装方法，大家可以使用下面这个指令来直接进行安装，不需要下载之后再来安装</font>
+`<font color='red'>`后面我发现了windows下更简单的安装方法，大家可以使用下面这个指令来直接进行安装，不需要下载之后再来安装`</font>`
 
 ```
 pip install pycocotools-windows
@@ -92,8 +74,6 @@ pip install -r requirements.txt
 pip install pyqt5
 pip install labelme
 ```
-
-
 
 ## 数据处理
 
@@ -111,19 +91,18 @@ pip install labelme
 
 * 数据配置文件的准备
 
-  配置文件是data目录下的`fire_data.yaml`，只需要将这里的数据集位置修改为你本地的数据集位置即可。
+  配置文件是data目录下的 `fire_data.yaml`，只需要将这里的数据集位置修改为你本地的数据集位置即可。
 
   ![image-20220219201500264](https://vehicle4cm.oss-cn-beijing.aliyuncs.com/typoraimgs/image-20220219201500264.png)
-
 * 模型配置文件的准备
 
-  模型的配置文件主要有三个，分别是`mask_yolov5s.yaml`、`mask_yolov5m.yaml`、`mask_yolov5l.yaml`，分别对应着yolo大中小三个模型，主要将配置文件中的nc修改为我们本次数据集对应的两个类别即可。
+  模型的配置文件主要有三个，分别是 `mask_yolov5s.yaml`、`mask_yolov5m.yaml`、`mask_yolov5l.yaml`，分别对应着yolo大中小三个模型，主要将配置文件中的nc修改为我们本次数据集对应的两个类别即可。
 
   ![image-20220219201903567](https://vehicle4cm.oss-cn-beijing.aliyuncs.com/typoraimgs/image-20220219201903567.png)
 
 ## 模型训练
 
-模型训练的主文件是`triain.py`，下面的三条指令分别对应着小中大三个模型的训练，有GPU的同学可以将设备换为0，表示使用0号GPU卡，显存比较大的同学可以将batchsize调整为4或者16，训练起来更快。
+模型训练的主文件是 `triain.py`，下面的三条指令分别对应着小中大三个模型的训练，有GPU的同学可以将设备换为0，表示使用0号GPU卡，显存比较大的同学可以将batchsize调整为4或者16，训练起来更快。
 
 ```bash
 python train.py --data fire_data.yaml --cfg mask_yolov5s.yaml --weights pretrained/yolov5s.pt --epoch 100 --batch-size 2 --device cpu
@@ -135,15 +114,13 @@ python train.py --data fire_data.yaml --cfg mask_yolov5m.yaml --weights pretrain
 
 ![image-20220219202818016](https://vehicle4cm.oss-cn-beijing.aliyuncs.com/typoraimgs/image-20220219202818016.png)
 
-等待训练完成之后训练结果将会保存在`runs/train`目录下，里面有各种各样的示意图供大家使用。
+等待训练完成之后训练结果将会保存在 `runs/train`目录下，里面有各种各样的示意图供大家使用。
 
 ![image-20220219202857929](https://vehicle4cm.oss-cn-beijing.aliyuncs.com/typoraimgs/image-20220219202857929.png)
 
-
-
 ## 模型使用
 
-模型的使用全部集成在了`detect.py`目录下，你按照下面的指令指你要检测的内容即可
+模型的使用全部集成在了 `detect.py`目录下，你按照下面的指令指你要检测的内容即可
 
 ```bash
  # 检测摄像头
@@ -157,52 +134,17 @@ python train.py --data fire_data.yaml --cfg mask_yolov5m.yaml --weights pretrain
  # 检测网络视频
   python detect.py --weights runs/train/exp_yolov5s/weights/best.pt 'https://youtu.be/NUsoVlDFqZg'  # YouTube video
  # 检测流媒体
-  python detect.py --weights runs/train/exp_yolov5s/weights/best.pt 'rtsp://example.com/media.mp4'  # RTSP, RTMP, HTTP stream                            
+  python detect.py --weights runs/train/exp_yolov5s/weights/best.pt 'rtsp://example.com/media.mp4'  # RTSP, RTMP, HTTP stream                          
 ```
 
-比如以我们的口罩模型为例，如果我们执行`python detect.py --weights runs/train/exp_yolov5s/weights/best.pt --source  images/1_67.jpg`的命令便可以得到这样的一张检测结果。
+比如以我们的口罩模型为例，如果我们执行 `python detect.py --weights runs/train/exp_yolov5s/weights/best.pt --source  images/1_67.jpg`的命令便可以得到这样的一张检测结果。
 
 ![image-20220219202519886](https://vehicle4cm.oss-cn-beijing.aliyuncs.com/typoraimgs/image-20220219202519886.png)
 
 ## 构建可视化界面
 
-可视化界面的部分在`window.py`文件中，是通过pyqt5完成的界面设计，在启动界面前，你需要将模型替换成你训练好的模型，替换的位置在`window.py`的第60行，修改成你的模型地址即可，如果你有GPU的话，可以将device设置为0，表示使用第0行GPU，这样可以加快模型的识别速度嗷。
+可视化界面的部分在 `window.py`文件中，是通过pyqt5完成的界面设计，在启动界面前，你需要将模型替换成你训练好的模型，替换的位置在 `window.py`的第60行，修改成你的模型地址即可，如果你有GPU的话，可以将device设置为0，表示使用第0行GPU，这样可以加快模型的识别速度嗷。
 
 ![image-20220219202323877](https://vehicle4cm.oss-cn-beijing.aliyuncs.com/typoraimgs/image-20220219202323877.png)
 
 现在启动看看效果吧。
-
-
-
-## 找到我
-
-你可以通过这些方式来寻找我。
-
-B站：[肆十二-](https://space.bilibili.com/161240964)
-
-CSDN：[肆十二](https://blog.csdn.net/ECHOSON)
-
-知乎：[肆十二 ](https://www.zhihu.com/people/song-chen-ming-28)
-
-微博：[肆十二-](https://weibo.com/u/5999979327)
-
-现在关注以后就是老朋友喽！
-
-![image-20211212195912911](https://vehicle4cm.oss-cn-beijing.aliyuncs.com/typoraimgs/image-20211212195912911.png)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
