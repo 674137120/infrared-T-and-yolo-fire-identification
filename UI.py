@@ -26,6 +26,9 @@ import os.path as osp
 from tqdm import tqdm
 import numpy as np
 
+# 导入 TemperatureData 类
+from temperature import TemperatureData
+
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
@@ -42,14 +45,14 @@ from utils.torch_utils import select_device, time_sync
 
 # 添加一个关于界面
 # 窗口主类
-class MainWindow(QTabWidget):
+class MainWindow(QWidget):  # 更改为QWidget，因为不再需要QTabWidget
     # 基本配置不动，然后只动第三个界面
     def __init__(self):
         # 初始化界面
         super().__init__()
-        self.conf_thres = 0.25 # 初始化照片界面置信度的值
-        self.vid_conf_thres = 0.25 # 初始化视频界面置信度的值
-        self.temperature_threshold = 800 # 初始化温度置信度的值
+        self.conf_thres = 0.25  # 初始化照片界面置信度的值
+        self.vid_conf_thres = 0.25  # 初始化视频界面置信度的值
+        self.temperature_threshold = 800  # 初始化温度置信度的值
         self.setWindowTitle('火灾检测系统')
         self.resize(1200, 800)
         self.setWindowIcon(QIcon("images/UI/xf.jpg"))
@@ -64,11 +67,15 @@ class MainWindow(QTabWidget):
         self.stopEvent.clear()
         self.model = self.model_load(weights="weights/best.pt",
                                      device=self.device)  # todo 指明模型加载的位置的设备
+        # 实例化 TemperatureData
+        self.temp_data = TemperatureData(width=640, height=640, min_temp=100, max_temp=2000)
         self.initUI()
         self.reset_vid()
+
     '''
     ***模型初始化***
     '''
+
     @torch.no_grad()
     def model_load(self, weights="",  # model.pt path(s)
                    device='',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
@@ -84,7 +91,8 @@ class MainWindow(QTabWidget):
         print("开始加载模型...")
 
         # 使用 tqdm 显示加载进度
-        with tqdm(total=3, desc="模型加载进度", ncols=100, bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed} < {remaining}, {rate_fmt}]") as pbar:
+        with tqdm(total=3, desc="模型加载进度", ncols=100,
+                  bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed} < {remaining}, {rate_fmt}]") as pbar:
             # 加载权重
             pbar.set_postfix(task="加载权重", refresh=True)  # 更新进度条任务
             model = DetectMultiBackend(weights, device=device, dnn=dnn)
@@ -113,7 +121,7 @@ class MainWindow(QTabWidget):
         if self.right_img.pixmap() is not None:
             img = self.right_img.pixmap().toImage()
             save_path, _ = QFileDialog.getSaveFileName(self, "保存识别结果", "", "Images (*.png *.xpm *.jpg)")
-            
+
             if save_path:
                 img.save(save_path)
                 QMessageBox.information(self, "保存成功", "识别结果已保存！")
@@ -125,16 +133,49 @@ class MainWindow(QTabWidget):
     '''
     ***界面初始化***
     '''
+
     def initUI(self):
         font_title = QFont('楷体', 16)
         font_main = QFont('楷体', 14)
 
-        # 图片识别界面，两个按钮，上传图片和显示结果
-        img_detection_widget = QWidget()
-        img_detection_layout = QVBoxLayout()
-        img_detection_title = QLabel("图片识别功能")
-        img_detection_title.setFont(font_title)
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)  # 移除主布局的边距
+        main_layout.setSpacing(0)  # 移除主布局的间距
 
+        # 创建一个背景标签
+        self.background_label = QLabel(self)
+        self.background_label.setPixmap(QPixmap("images/UI/background.jpg").scaled(self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
+        self.background_label.setScaledContents(True)
+        self.background_label.setGeometry(0, 0, self.width(), self.height())
+        self.background_label.lower()  # 将背景标签置于最底层
+
+        # 创建一个透明的中央小部件，用于放置所有控件
+        central_widget = QWidget(self)
+        central_widget.setStyleSheet("background: transparent;")  # 设置透明背景
+        central_layout = QVBoxLayout(central_widget)
+        central_layout.setContentsMargins(20, 20, 20, 20)  # 设置内部边距
+        central_layout.setSpacing(20)  # 设置内部间距
+
+        '''
+        图片检测部分
+        '''
+        img_group_box = QGroupBox("图片检测功能")
+        img_group_box.setStyleSheet("""
+            QGroupBox {
+                background-color: rgba(255, 255, 255, 200); /* 半透明白色背景 */
+                border: 2px solid gray;
+                border-radius: 10px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
+            }
+        """)
+        img_layout = QVBoxLayout()
+
+        # 图片显示部分
         mid_img_widget = QWidget()
         mid_img_layout = QHBoxLayout()
         self.left_img = QLabel()
@@ -144,10 +185,13 @@ class MainWindow(QTabWidget):
         self.left_img.setAlignment(Qt.AlignCenter)
         self.right_img.setAlignment(Qt.AlignCenter)
         mid_img_layout.addWidget(self.left_img)
-        mid_img_layout.addStretch(0)
+        mid_img_layout.addStretch(1)
         mid_img_layout.addWidget(self.right_img)
         mid_img_widget.setLayout(mid_img_layout)
 
+        # 图片按钮部分
+        button_widget = QWidget()
+        button_layout = QHBoxLayout()
         up_img_button = QPushButton("上传图片")
         det_img_button = QPushButton("开始检测")
         save_result_button = QPushButton("保存识别结果")  # 新增保存结果按钮
@@ -158,51 +202,76 @@ class MainWindow(QTabWidget):
         det_img_button.setFont(font_main)
         save_result_button.setFont(font_main)  # 设置字体
 
+        # 设置按钮样式，确保按钮有自己的背景和不透明
         button_style = """
-            QPushButton{color:white}
-            QPushButton:hover{background-color: rgb(2,110,180); }
-            QPushButton{background-color:rgb(48,124,208)}
-            QPushButton{border:2px}
-            QPushButton{border-radius:5px}
-            QPushButton{padding:5px 5px}
-            QPushButton{margin:5px 5px}
+            QPushButton{
+                color:white;
+                background-color: rgb(48,124,208);
+                border:2px solid gray;
+                border-radius:5px;
+                padding:5px 15px;
+                margin:5px;
+            }
+            QPushButton:hover{
+                background-color: rgb(2,110,180);
+            }
         """
         up_img_button.setStyleSheet(button_style)
         det_img_button.setStyleSheet(button_style)
         save_result_button.setStyleSheet(button_style)  # 设置样式
 
+        button_layout.addWidget(up_img_button)
+        button_layout.addWidget(det_img_button)
+        button_layout.addWidget(save_result_button)
+        button_widget.setLayout(button_layout)
+
         # 图片滑动条和置信度显示
-        self.confidence_label = QLabel(f"当前置信度: {0.25:.2f}")
+        conf_layout = QHBoxLayout()
+        self.confidence_label = QLabel(f"当前置信度: {self.conf_thres:.2f}")
         self.confidence_label.setFont(font_main)
         self.conf_slider = QSlider(Qt.Horizontal)
         self.conf_slider.setRange(1, 100)  # 滑动条范围1%-100%
-        self.conf_slider.setValue(25)  # 默认值25%
+        self.conf_slider.setValue(int(self.conf_thres * 100))  # 默认值25%
         self.conf_slider.setTickInterval(10)  # 每10%一个刻度
         self.conf_slider.valueChanged.connect(self.update_confidence)
+        conf_layout.addWidget(self.confidence_label)
+        conf_layout.addWidget(self.conf_slider)
 
-        # 布局设置
-        img_detection_layout.addWidget(img_detection_title, alignment=Qt.AlignCenter)
-        img_detection_layout.addWidget(mid_img_widget, alignment=Qt.AlignCenter)
-        img_detection_layout.addWidget(self.confidence_label, alignment=Qt.AlignCenter)
-        img_detection_layout.addWidget(self.conf_slider, alignment=Qt.AlignCenter)
-        img_detection_layout.addWidget(up_img_button)
-        img_detection_layout.addWidget(det_img_button)
-        img_detection_layout.addWidget(save_result_button)
-        img_detection_widget.setLayout(img_detection_layout)
+        img_layout.addWidget(QLabel("图片识别功能").setFont(font_title), alignment=Qt.AlignCenter)
+        img_layout.addWidget(mid_img_widget)
+        img_layout.addLayout(conf_layout)
+        img_layout.addWidget(button_widget)
+        img_group_box.setLayout(img_layout)
 
         '''
-        视频界面
+        视频检测部分
         '''
-
-        # 视频检测界面
-        vid_detection_widget = QWidget()
-        vid_detection_layout = QVBoxLayout()
+        vid_group_box = QGroupBox("视频检测功能")
+        vid_group_box.setStyleSheet("""
+            QGroupBox {
+                background-color: rgba(255, 255, 255, 200); /* 半透明白色背景 */
+                border: 2px solid gray;
+                border-radius: 10px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
+            }
+        """)
+        vid_layout = QVBoxLayout()
         vid_title = QLabel("视频检测功能")
         vid_title.setFont(font_title)
+
         self.vid_img = QLabel()
         self.vid_img.setPixmap(QPixmap("images/UI/up.jpeg"))
         vid_title.setAlignment(Qt.AlignCenter)
         self.vid_img.setAlignment(Qt.AlignCenter)
+
+        # 视频按钮部分
+        vid_button_widget = QWidget()
+        vid_button_layout = QHBoxLayout()
         self.webcam_detection_btn = QPushButton("摄像头实时监测")
         self.mp4_detection_btn = QPushButton("视频文件检测")
         self.vid_stop_btn = QPushButton("停止检测")
@@ -219,40 +288,52 @@ class MainWindow(QTabWidget):
         self.mp4_detection_btn.clicked.connect(self.open_mp4)
         self.vid_stop_btn.clicked.connect(self.close_vid)
 
+        vid_button_layout.addWidget(self.webcam_detection_btn)
+        vid_button_layout.addWidget(self.mp4_detection_btn)
+        vid_button_layout.addWidget(self.vid_stop_btn)
+        vid_button_widget.setLayout(vid_button_layout)
+
         # 视频置信度控件
-        self.vid_confidence_label = QLabel(f"当前置信度: {0.25:.2f}")
+        vid_conf_layout = QHBoxLayout()
+        self.vid_confidence_label = QLabel(f"当前置信度: {self.vid_conf_thres:.2f}")
         self.vid_confidence_label.setFont(font_main)
         self.vid_conf_slider = QSlider(Qt.Horizontal)
         self.vid_conf_slider.setRange(1, 100)  # 滑动条范围1%-100%
-        self.vid_conf_slider.setValue(25)  # 默认值25%
+        self.vid_conf_slider.setValue(int(self.vid_conf_thres * 100))  # 默认值25%
         self.vid_conf_slider.setTickInterval(10)  # 每10%一个刻度
         self.vid_conf_slider.valueChanged.connect(self.update_vid_confidence)
+        vid_conf_layout.addWidget(self.vid_confidence_label)
+        vid_conf_layout.addWidget(self.vid_conf_slider)
 
         # 新增温度阈值滑动条
-        self.vid_temperature_label = QLabel(f"当前温度阈值: {800:.2f}°C")
+        temp_layout = QHBoxLayout()
+        self.vid_temperature_label = QLabel(f"当前温度阈值: {self.temperature_threshold:.2f}°C")
         self.vid_temperature_label.setFont(font_main)
         self.vid_temp_slider = QSlider(Qt.Horizontal)
-        self.vid_temp_slider.setRange(500, 1200)  # 温度阈值范围500°C到1200°C
-        self.vid_temp_slider.setValue(800)  # 默认温度阈值800°C
+        self.vid_temp_slider.setRange(100, 2000)  # 温度阈值范围100°C到2000°C
+        self.vid_temp_slider.setValue(self.temperature_threshold)  # 默认温度阈值800°C
         self.vid_temp_slider.setTickInterval(50)  # 每50°C一个刻度
         self.vid_temp_slider.valueChanged.connect(self.update_vid_temperature_threshold)
+        temp_layout.addWidget(self.vid_temperature_label)
+        temp_layout.addWidget(self.vid_temp_slider)
 
         # 添加组件到视频检测布局
-        vid_detection_layout.addWidget(vid_title)
-        vid_detection_layout.addWidget(self.vid_img)
-        vid_detection_layout.addWidget(self.webcam_detection_btn)
-        vid_detection_layout.addWidget(self.mp4_detection_btn)
-        vid_detection_layout.addWidget(self.vid_stop_btn)
-        vid_detection_layout.addWidget(self.vid_confidence_label, alignment=Qt.AlignCenter)
-        vid_detection_layout.addWidget(self.vid_conf_slider, alignment=Qt.AlignCenter)
-        vid_detection_layout.addWidget(self.vid_temperature_label, alignment=Qt.AlignCenter)  # 添加温度阈值标签
-        vid_detection_layout.addWidget(self.vid_temp_slider,alignment=Qt.AlignCenter) # 添加温度阈值滑动条
-        vid_detection_widget.setLayout(vid_detection_layout)
+        vid_layout.addWidget(vid_title)
+        vid_layout.addWidget(self.vid_img)
+        vid_layout.addWidget(vid_button_widget)
+        vid_layout.addLayout(vid_conf_layout)
+        vid_layout.addLayout(temp_layout)
+        vid_group_box.setLayout(vid_layout)
 
-        self.addTab(img_detection_widget, '图片检测')
-        self.addTab(vid_detection_widget, '视频检测')
-        self.setTabIcon(0, QIcon('images/UI/lufei.png'))
-        self.setTabIcon(1, QIcon('images/UI/lufei.png'))
+        # 将图片检测和视频检测的GroupBox添加到中央布局中
+        central_layout.addWidget(img_group_box)
+        central_layout.addWidget(vid_group_box)
+
+        # 将中央小部件添加到主布局中
+        main_layout.addWidget(central_widget)
+
+        self.setLayout(main_layout)
+
 
     def update_vid_temperature_threshold(self, value):
         """
@@ -282,26 +363,31 @@ class MainWindow(QTabWidget):
     '''
 
     def upload_img(self):
-        # 选择录像文件进行读取
-        fileName, fileType = QFileDialog.getOpenFileName(self, 'Choose file', '', '*.jpg *.png *.tif *.jpeg')
-        if fileName:
-            suffix = fileName.split(".")[-1]
-            save_path = osp.join("images/tmp", "tmp_upload." + suffix)
-            shutil.copy(fileName, save_path)
-            # 应该调整一下图片的大小，然后统一防在一起
-            im0 = cv2.imread(save_path)
-            resize_scale = self.output_size / im0.shape[0]
-            im0 = cv2.resize(im0, (0, 0), fx=resize_scale, fy=resize_scale)
-            cv2.imwrite("images/tmp/upload_show_result.jpg", im0)
-            # self.right_img.setPixmap(QPixmap("images/tmp/single_result.jpg"))
-            self.img2predict = fileName
-            self.left_img.setPixmap(QPixmap("images/tmp/upload_show_result.jpg"))
-            # todo 上传图片之后右侧的图片重置，
-            self.right_img.setPixmap(QPixmap("images/UI/right.jpeg"))
-
-    '''
-    ***检测图片***
-    '''
+        try:
+            # 选择图片文件进行读取
+            fileName, fileType = QFileDialog.getOpenFileName(self, 'Choose file', '', '*.jpg *.png *.tif *.jpeg')
+            if fileName:
+                suffix = fileName.split(".")[-1]
+                save_path = osp.join("images/tmp", "tmp_upload." + suffix)
+                shutil.copy(fileName, save_path)
+                # 应该调整一下图片的大小，然后统一防在一起
+                im0 = cv2.imread(save_path)
+                if im0 is None:
+                    raise ValueError("无法读取图像文件。")
+                resize_scale = self.output_size / im0.shape[0]
+                im0 = cv2.resize(im0, (0, 0), fx=resize_scale, fy=resize_scale)
+                # 转换为QPixmap
+                im0_rgb = cv2.cvtColor(im0, cv2.COLOR_BGR2RGB)
+                h, w, ch = im0_rgb.shape
+                bytes_per_line = ch * w
+                q_image = QImage(im0_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
+                pixmap = QPixmap.fromImage(q_image)
+                self.left_img.setPixmap(pixmap)
+                self.img2predict = fileName
+                # 重置右侧图像
+                self.right_img.setPixmap(QPixmap("images/UI/right.jpeg"))
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"上传图片失败: {str(e)}")
 
     def detect_img(self):
         model = self.model  # 模型
@@ -399,9 +485,6 @@ class MainWindow(QTabWidget):
                                 c = int(cls)  # 整数类别
                                 label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
                                 annotator.box_label(xyxy, label, color=colors(c, True))
-                                # if save_crop:
-                                #     save_one_box(xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg',
-                                #                  BGR=True)
                     # 打印时间（仅推理）
                     LOGGER.info(f'{s}完成. ({t3 - t2:.3f}s)')
                     # 流结果
@@ -412,9 +495,13 @@ class MainWindow(QTabWidget):
                     # 保存结果（带有检测的图像）
                     resize_scale = output_size / im0.shape[0]
                     im0 = cv2.resize(im0, (0, 0), fx=resize_scale, fy=resize_scale)
-                    cv2.imwrite("images/tmp/single_result.jpg", im0)
-                    # 目前的情况来看，应该只是ubuntu下会出问题，但是在windows下是完整的，所以继续
-                    self.right_img.setPixmap(QPixmap("images/tmp/single_result.jpg"))  # 设置QPixmap
+                    # 转换为QPixmap
+                    im0_rgb = cv2.cvtColor(im0, cv2.COLOR_BGR2RGB)
+                    h, w, ch = im0_rgb.shape
+                    bytes_per_line = ch * w
+                    q_image = QImage(im0_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
+                    pixmap = QPixmap.fromImage(q_image)
+                    self.right_img.setPixmap(pixmap)  # 设置QPixmap
 
     # 视频检测，逻辑基本一致，有两个功能，分别是检测摄像头的功能和检测视频文件的功能，先做检测摄像头的功能。
 
@@ -458,7 +545,7 @@ class MainWindow(QTabWidget):
         if fileName:
             self.webcam_detection_btn.setEnabled(False)
             self.mp4_detection_btn.setEnabled(False)
-            # self.vid_stop_btn.setEnabled(True)
+            self.vid_stop_btn.setEnabled(True)
             self.vid_source = fileName
             self.webcam = False
             th = threading.Thread(target=self.detect_vid)
@@ -470,16 +557,13 @@ class MainWindow(QTabWidget):
 
     # 视频和摄像头的主函数是一样的，不过是传入的source不同罢了
     def detect_vid(self):
-        # pass
         model = self.model  # 模型
         output_size = self.output_size  # 输出大小
-        # source = self.img2predict  # 视频源文件/目录/URL/glob模式，0表示摄像头
         imgsz = [640, 640]  # 推理大小（像素）
         conf_thres = self.vid_conf_thres  # 置信度阈值
-        temp_thres = self.temperature_threshold # 温度阈值
+        temp_thres = self.temperature_threshold  # 温度阈值
         iou_thres = 0.45  # NMS IOU阈值
         max_det = 1000  # 每张图片的最大检测数量
-        # device = self.device  # cuda设备，例如0或0,1,2,3或cpu
         view_img = False  # 显示结果
         save_txt = False  # 将结果保存到*.txt文件
         save_conf = False  # 在--save-txt标签中保存置信度
@@ -501,9 +585,6 @@ class MainWindow(QTabWidget):
         imgsz = check_img_size(imgsz, s=stride)  # 检查图像大小
         save_img = not nosave and not source.endswith('.txt')  # 是否保存推理图像
 
-        # 加载模拟热成像数据
-        temperature_matrix = np.random.uniform(100, 2000, (640, 640))  # 假设温度矩阵，范围100-2000°C
-
         # 数据加载器
         if webcam:
             view_img = check_imshow()  # 检查是否显示图像
@@ -519,6 +600,13 @@ class MainWindow(QTabWidget):
             model(torch.zeros(1, 3, *imgsz).to(device).type_as(next(model.model.parameters())))  # 预热
         dt, seen = [0.0, 0.0, 0.0], 0  # 计时器和已处理图像数量
         for path, im, im0s, vid_cap, s in dataset:  # 数据集迭代
+            if self.stopEvent.is_set():
+                self.stopEvent.clear()
+                self.webcam_detection_btn.setEnabled(True)
+                self.mp4_detection_btn.setEnabled(True)
+                self.reset_vid()
+                break
+
             t1 = time_sync()  # 同步时间
             im = torch.from_numpy(im).to(device)  # 将numpy数组转换为torch张量并移动到设备
             im = im.half() if half else im.float()  # uint8到fp16/32
@@ -527,7 +615,7 @@ class MainWindow(QTabWidget):
                 im = im[None]  # 扩展批次维度
             # 获取最新的置信度阈值
             conf_thres = self.vid_conf_thres  # 每次循环时动态获取最新的置信度阈值
-            temp_thres = self.temperature_threshold # 动态更新温度阈值
+            temp_thres = self.temperature_threshold  # 动态更新温度阈值
             t2 = time_sync()  # 同步时间
             dt[0] += t2 - t1  # 计算时间
             # 推理
@@ -537,8 +625,6 @@ class MainWindow(QTabWidget):
             # NMS
             pred = non_max_suppression(pred, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)  # 非最大抑制
             dt[2] += time_sync() - t3  # 计算时间
-            # 二阶段分类器（可选）
-            # pred = utils.general.apply_classifier(pred, classifier_model, im, im0s)
             # 处理预测结果
             for i, det in enumerate(pred):  # 每张图片
                 seen += 1
@@ -552,6 +638,10 @@ class MainWindow(QTabWidget):
                 gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # 归一化增益whwh
                 imc = im0.copy() if save_crop else im0  # 用于save_crop
                 annotator = Annotator(im0, line_width=line_thickness, example=str(names))  # 注释器
+
+                # 初始化 temp 列表来存储所有检测对象的温度
+                temp_list = []
+
                 if len(det):
                     # 将框从img_size重新缩放到im0大小
                     det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
@@ -561,39 +651,43 @@ class MainWindow(QTabWidget):
                         s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # 添加到字符串
                     # 写入结果
                     for *xyxy, conf, cls in reversed(det):
-
                         # 获取边界框中心
                         x_center = int((xyxy[0] + xyxy[2]) / 2)
                         y_center = int((xyxy[1] + xyxy[3]) / 2)
 
                         # 获取该位置的温度值
-                        temp = temperature_matrix[y_center, x_center]  # 假设这里是热成像图中对应位置的温度值
+                        temp = self.temp_data.get_temperature(x_center, y_center)  # 使用 TemperatureData 获取温度值
+                        temp_list.append(temp)
 
-                        # 格式化温度值和置信度
-                        # if temp>=temp_thres:
-                        #     temp_label = f'Temperature: {temp:.2f}°C'
                         if save_txt:  # 写入文件
                             xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # 归一化xywh
                             line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # 标签格式
-                            # with open(txt_path + '.txt', 'a') as f:
-                            #     f.write(('%g ' * len(line)).rstrip() % line + '\n')
+
                         if save_img or save_crop or view_img:  # 添加边界框到图像
                             c = int(cls)  # 整数类别
-                            label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f} ')
+                            label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
                             annotator.box_label(xyxy, label, color=colors(c, True))
                             # 如果是烟雾类别，则不显示温度标签
                             # 获取处理后的图像
                             im0 = annotator.result()
                             if names[c] != "smoke":  # 如果类别不是烟雾
-                                if temp>=temp_thres:
+                                if temp >= temp_thres:
                                     temp_label = f'Temperature: {temp:.2f}°C'
                                     # 添加温度标签
-                                    im0 = cv2.putText(im0, temp_label, 
-                                                                (int(x_center), int(y_center - 25)), 
-                                                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, 
-                                                                (0, 255, 0), 2)  # Green color, thickness=2
+                                    im0 = cv2.putText(
+                                        im0, temp_label,
+                                        (int(x_center), int(y_center - 25)),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                                        (0, 255, 0), 2  # Green color, thickness=2
+                                    )
 
-                print(f"置信度: {conf_thres:.2f} 温度: {temp:.2f}°C")
+                # 如果有温度数据，则打印平均温度
+                if temp_list:
+                    avg_temp = sum(temp_list) / len(temp_list)
+                    print(f"置信度: {conf_thres:.2f} 平均温度: {avg_temp:.2f}°C")
+                else:
+                    print(f"置信度: {conf_thres:.2f} 没有检测到温度数据")
+
                 # 打印时间（仅推理）
                 LOGGER.info(f'{s}完成. ({t3 - t2:.3f}s)')
                 # 流结果
@@ -602,19 +696,14 @@ class MainWindow(QTabWidget):
                 frame = im0
                 resize_scale = output_size / frame.shape[0]
                 frame_resized = cv2.resize(frame, (0, 0), fx=resize_scale, fy=resize_scale)
-                cv2.imwrite("images/tmp/single_result_vid.jpg", frame_resized)
-                self.vid_img.setPixmap(QPixmap("images/tmp/single_result_vid.jpg"))
-                # self.vid_img
-                # if view_img:
-                # cv2.imshow(str(p), im0)
-                # self.vid_img.setPixmap(QPixmap("images/tmp/single_result_vid.jpg"))
-                # cv2.waitKey(1)  # 1毫秒
-            if cv2.waitKey(25) & self.stopEvent.is_set() == True:  # 检查是否停止
-                self.stopEvent.clear()  # 清除停止事件
-                self.webcam_detection_btn.setEnabled(True)  # 启用摄像头检测按钮
-                self.mp4_detection_btn.setEnabled(True)  # 启用MP4检测按钮
-                self.reset_vid()  # 重置视频
-                break  # 跳出循环
+                # 转换为QPixmap
+                frame_rgb = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
+                h, w, ch = frame_rgb.shape
+                bytes_per_line = ch * w
+                q_image = QImage(frame_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
+                pixmap = QPixmap.fromImage(q_image)
+                self.vid_img.setPixmap(pixmap)  # 设置QPixmap
+
         self.reset_vid()  # 重置视频
 
     '''
@@ -624,6 +713,7 @@ class MainWindow(QTabWidget):
     def reset_vid(self):
         self.webcam_detection_btn.setEnabled(True)
         self.mp4_detection_btn.setEnabled(True)
+        self.vid_stop_btn.setEnabled(False)
         self.vid_img.setPixmap(QPixmap("images/UI/up.jpeg"))
         self.vid_source = '0'
         self.webcam = True

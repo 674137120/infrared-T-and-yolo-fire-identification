@@ -1,5 +1,5 @@
 # pip install -r requirements.txt
-
+# conda install pytoch==1.9.0 torchvision torchaudio cudatoolkit=11.1   #gpu
 # Base ----------------------------------------
 matplotlib>=3.2.2
 numpy>=1.18.5
@@ -37,3 +37,7 @@ thop  # FLOPs computation
 
 # 热成像仪
 # flirpy
+
+#web
+# flask
+# flask_cors

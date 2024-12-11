@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>火灾检测系统</title>
+    <!-- 使用Flask的url_for来引用静态文件，如果不使用Flask模板渲染，可直接写相对路径 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/styles.css') }}">
+    <script src="{{ url_for('static', filename='scripts/script.js') }}"></script>
+
+</head>
+<body>
+    <div class="container">
+        <h1>火灾检测系统</h1>
+        
+        <!-- 图片检测部分 -->
+        <div class="section">
+            <h2>图片检测功能</h2>
+            <!-- 图片上传按钮 -->
+            <input type="file" id="imageUpload" accept="image/*">
+            <br>
+            <!-- 开始检测按钮 -->
+            <button onclick="uploadImage()">开始检测</button>
+            <br>
+            <!-- 置信度阈值调节 -->
+            <label for="confSlider">置信度阈值: <span id="confValue">0.25</span></label>
+            <input type="range" id="confSlider" min="1" max="100" value="25" oninput="updateConfValue(this.value)">
+            <br>
+            <!-- 检测状态消息，可以在脚本中根据检测进度显示/隐藏 -->
+            <div id="messageImage" style="display:none; color:blue;">正在检测，请稍候...</div>
+            <!-- 显示检测结果图像 -->
+            <img id="detectedImage" src="" alt="检测结果" style="display:none; margin-top:20px; border:2px solid #ccc; border-radius:10px;">
+            <br>
+            <!-- 保存识别结果按钮 -->
+            <button onclick="saveImage()">保存识别结果</button>
+        </div>
+        
+        <hr>
+        
+        <!-- 视频检测部分 -->
+        <div class="section">
+            <h2>视频检测功能</h2>
+            <!-- 视频上传按钮 -->
+            <input type="file" id="videoUpload" accept="video/*">
+            <br>
+            <!-- 开始检测和停止检测按钮 -->
+            <button onclick="uploadVideo()">开始检测</button>
+            <button onclick="stopDetection()">停止检测</button>
+            <br>
+            <!-- 视频置信度阈值调节 -->
+            <label for="vidConfSlider">置信度阈值: <span id="vidConfValue">0.25</span></label>
+            <input type="range" id="vidConfSlider" min="1" max="100" value="25" oninput="updateVidConfValue(this.value)">
+            <br>
+            <!-- 温度阈值调节 -->
+            <label for="tempSlider">温度阈值: <span id="tempValue">800°C</span></label>
+            <input type="range" id="tempSlider" min="100" max="2000" value="800" oninput="updateTempValue(this.value)">
+            <br>
+            <!-- 视频检测状态消息 -->
+            <div id="messageVideo" style="display:none; color:blue;">视频检测中，请稍候...</div>
+            <!-- 显示检测后的视频 -->
+            <video id="detectedVideo" controls style="display:none; margin-top:20px; border:2px solid #ccc; border-radius:10px;"></video>
+        </div>
+    </div>
+
+    <!-- 引入脚本文件 -->
+    <script src="{{ url_for('static', filename='scripts/script.js') }}"></script>
+</body>
+</html>
